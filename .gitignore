@@ -1,0 +1,9 @@
+
+/TestResults
+/_ReSharper.TestingInSP2010
+*.suo
+*.user
+/Tests/obj
+/Tests/bin
+/Tests/MolesAssemblies
+/Tests/TestResults

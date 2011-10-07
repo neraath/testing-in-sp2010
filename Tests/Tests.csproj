@@ -62,7 +62,7 @@
     <Moles Include="SecureLibrary.moles" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ClassLibrary1\SecureLibrary.csproj">
+    <ProjectReference Include="..\SecureLibrary\SecureLibrary.csproj">
       <Project>{7E7BFF5E-2889-4FA8-9E5E-EFC3A594DC9A}</Project>
       <Name>SecureLibrary</Name>
     </ProjectReference>

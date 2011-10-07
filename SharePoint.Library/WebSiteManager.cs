@@ -21,5 +21,16 @@ namespace SharePoint.Library
                 }
             }
         }
+
+        public int GetNumberOfSubSites()
+        {
+            using (SPSite site = new SPSite(siteUrl))
+            {
+                using (SPWeb web = site.OpenWeb())
+                {
+                    return web.Webs.Count;
+                }
+            }
+        }
     }
 }

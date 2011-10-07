@@ -1,4 +1,8 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Microsoft.SharePoint.Behaviors;
 using Microsoft.SharePoint.Moles;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -162,6 +166,87 @@ namespace SharePoint.Library.Tests
 
             // Assert.
             Assert.AreEqual(count, resultCount);
+        }
+
+        /// <summary>
+        /// Shows the method of chaining the expressions together to create a proper 
+        /// moled hierarchy of calls in order to test the application.
+        /// </summary>
+        [TestMethod, HostType("Moles")]
+        public void TestGetUsersForSiteReturnsEmptyListIfNoUsersDefined()
+        {
+            // Arrange.
+            MSPSite.ConstructorString = (instance, url) =>
+                                            {
+                                                MSPSite moledInstance = new MSPSite(instance);
+                                                moledInstance.Dispose = () => { };
+                                                moledInstance.OpenWeb = () =>
+                                                                            {
+                                                                                MSPWeb web = new MSPWeb();
+                                                                                web.Dispose = () => { };
+                                                                                web.UsersGet = () =>
+                                                                                                   {
+                                                                                                       MSPUserCollection users = new MSPUserCollection();
+                                                                                                       users.CountGet = () => 0;
+                                                                                                       return users;
+                                                                                                   };
+                                                                                return web;
+                                                                            };
+                                            };
+            WebSiteManager manager = new WebSiteManager("http://test");
+
+            // Act.
+            IEnumerable<string> returnedUsers = manager.GetUsersForSite();
+
+            // Assert.
+            Assert.AreEqual(0, returnedUsers.Count(), "Expected no users.");
+        }
+
+        /// <summary>
+        /// This test shows how such a simple operation starts to take a lot
+        /// of effort, and is producing a lot of repeatable code. 
+        /// </summary>
+        [TestMethod, HostType("Moles")]
+        public void TestGetUsersForSiteReturnsLoginNamesOfAllDefinedUsers()
+        {
+            MSPUser user1 = new MSPUser() { LoginNameGet = () => @"DOMAIN\user1" };
+            MSPUser user2 = new MSPUser() { LoginNameGet = () => @"EXTERNAL\some.user" };
+            MSPUser user3 = new MSPUser() { LoginNameGet = () => "chris@chrisweldon.net" };
+            MSPUser user4 = new MSPUser() { LoginNameGet = () => "mike.test" };
+            MSPUserCollection users = new MSPUserCollection();
+            users.CountGet = () => 4;
+            users.ItemGetInt32 = (id) => 
+                                     {
+                                         switch (id)
+                                         {
+                                             case 0:
+                                                 return user1;
+                                             case 1:
+                                                 return user2;
+                                             case 2:
+                                                 return user3;
+                                             case 3:
+                                                 return user4;
+                                             default:
+                                                 throw new ArgumentOutOfRangeException();
+                                         }
+                                     };
+
+            MSPSite.ConstructorString = (instance, url) => { };
+            MSPSite.AllInstances.OpenWeb = (instance) =>
+                                               {
+                                                   MSPWeb web = new MSPWeb();
+                                                   web.Dispose = () => { };
+                                                   web.UsersGet = () => users;
+                                                   return web;
+                                               };
+
+            WebSiteManager manager = new WebSiteManager("http://test");
+            IEnumerable<string> returnedUsers = manager.GetUsersForSite();
+            Assert.IsTrue(returnedUsers.Contains(user1.Instance.LoginName));
+            Assert.IsTrue(returnedUsers.Contains(user2.Instance.LoginName));
+            Assert.IsTrue(returnedUsers.Contains(user3.Instance.LoginName));
+            Assert.IsTrue(returnedUsers.Contains(user4.Instance.LoginName));
         }
     }
 }

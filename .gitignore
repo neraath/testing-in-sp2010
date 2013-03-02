@@ -1,4 +1,9 @@
-
+*.dll
+*.pdb
+obj
+bin
+packages
+FakesAssemblies
 /TestResults
 /_ReSharper.TestingInSP2010
 *.suo

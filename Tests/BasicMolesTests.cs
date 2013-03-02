@@ -1,9 +1,8 @@
 ﻿using System;
-using Microsoft.Moles.Framework;
-using Microsoft.Moles.Framework.Moles;
+using Microsoft.QualityTools.Testing.Fakes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-[assembly: MoledType(typeof(System.DateTime))]
+//[assembly: MoledType(typeof(System.DateTime))]
 
 namespace TestingInSP2010
 {
@@ -18,11 +17,13 @@ namespace TestingInSP2010
         /// behavior of static methods. 
         /// </summary>
         [TestMethod]
-        [HostType("Moles")]
         public void TestDateTimeDetour()
         {
-            System.Moles.MDateTime.NowGet = () => new DateTime(2011, 10, 1, 0, 0, 0);
-            Assert.AreEqual(new DateTime(2011, 10, 1, 0, 0, 0), DateTime.Now, "Dates do not match.");
+            using (ShimsContext.Create())
+            {
+                System.Fakes.ShimDateTime.NowGet = () => new DateTime(2011, 10, 1, 0, 0, 0);
+                Assert.AreEqual(new DateTime(2011, 10, 1, 0, 0, 0), DateTime.Now, "Dates do not match.");
+            }
         }
 
         /// <summary>
@@ -30,14 +31,17 @@ namespace TestingInSP2010
         /// that operations on methods are detoured. Here, a difference between any two 
         /// arbitrary dates should result in a single day difference.
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void ExtendedDateTimeTest()
         {
             DateTime now = DateTime.Now;
             DateTime backToTheFuture = new DateTime(2015, 10, 21);
-            System.Moles.MDateTime.SubtractionOpDateTimeDateTime =
-                (dateLeft, dateRight) => new TimeSpan(1, 0, 0, 0);
-            Assert.AreEqual(new TimeSpan(1, 0, 0, 0), backToTheFuture - now);
+            using (ShimsContext.Create())
+            {
+                System.Fakes.ShimDateTime.SubtractionOpDateTimeDateTime =
+                    (dateLeft, dateRight) => new TimeSpan(1, 0, 0, 0);
+                Assert.AreEqual(new TimeSpan(1, 0, 0, 0), backToTheFuture - now);
+            }
         }
     }
 }

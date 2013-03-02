@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Microsoft.SharePoint.Behaviors;
-using Microsoft.SharePoint.Moles;
+using SharePoint.Library;
+using Microsoft.SharePoint.Emulators;
+using Microsoft.SharePoint.Fakes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SharePoint.Library.Tests
@@ -14,108 +15,129 @@ namespace SharePoint.Library.Tests
         /// of just strictly moles. It accomplishes the same test as defined in
         /// <see cref="WebSiteManagerTests"/>.
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void GetSiteNameReturnsWebTitle()
         {
             // Arrange.
             string title = "Test Site";
-            BSPWeb web = new BSPWeb() { Title = title };
-            MSPSite.ConstructorString = (instance, url) =>
-                                            {
-                                                MSPSite moledSite = new MSPSite(instance);
-                                                moledSite.Dispose = () => { };
-                                                moledSite.OpenWeb = () => web;
-                                            };
-            WebSiteManager manager = new WebSiteManager("http://test");
+            using (new SharePointEmulationScope())
+            {
+                ShimSPWeb web = new ShimSPWeb() {TitleGet = () => title};
+                ShimSPSite.ConstructorString = (instance, url) =>
+                    {
+                        ShimSPSite moledSite = new ShimSPSite(instance);
+                        moledSite.Dispose = () => { };
+                        moledSite.OpenWeb = () => web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            string returnedTitle = manager.GetSiteName();
+                // Act.
+                string returnedTitle = manager.GetSiteName();
 
-            // Assert.
-            Assert.AreEqual(title, returnedTitle);
+                // Assert.
+                Assert.AreEqual(title, returnedTitle);
+            }
         }
 
         /// <summary>
         /// This is a greatly simplified approach to defining and testing behavior
         /// around subwebs.
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestWhenNoSubwebsDefinedShouldReturnZeroSubSites()
         {
             // Arrange.
-            BSPWeb web = new BSPWeb();
-            web.Webs.SetEmpty();
-            MSPSite.ConstructorString = (instance, url) =>
-                                            {
-                                                MSPSite site = new MSPSite(instance);
-                                                site.Dispose = () => { };
-                                                site.OpenWeb = () => web;
-                                            };
-            WebSiteManager manager = new WebSiteManager("http://test");
+            using (new SharePointEmulationScope())
+            {
+                ShimSPWeb web = new ShimSPWeb();
+                web.WebsGet = () => new Microsoft.SharePoint.Fakes.ShimSPWebCollection() {CountGet = () => 0};
+                ShimSPSite.ConstructorString = (instance, url) =>
+                    {
+                        ShimSPSite site = new ShimSPSite(instance);
+                        site.Dispose = () => { };
+                        site.OpenWeb = () => web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            int number = manager.GetNumberOfSubSites();
+                // Act.
+                int number = manager.GetNumberOfSubSites();
 
-            // Assert.
-            Assert.AreEqual(0, number);
+                // Assert.
+                Assert.AreEqual(0, number);
+            }
         }
 
         /// <summary>
         /// This is the counter to the method TestShowingFakingCollectionExpectations, 
         /// where here we actually do define real members of the collection.
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestShowingMoreRealisticCollectionExpectations()
         {
             // Arrange.
             int count = 4;
-            BSPWeb web = new BSPWeb();
-            BSPWeb[] subWebs = web.Webs.SetMany(count);
-            MSPSite.ConstructorString = (instance, url) =>
+            using (new SharePointEmulationScope())
             {
-                MSPSite site = new MSPSite(instance);
-                site.Dispose = () => { };
-                site.OpenWeb = () => web;
-            };
-            WebSiteManager manager = new WebSiteManager("http://test");
+                ShimSPWeb web = new ShimSPWeb();
+                ShimSPWebCollection webCollection = new ShimSPWebCollection();
+                webCollection.CountGet = () => count;
+                web.WebsGet = () => webCollection;
+                ShimSPSite.ConstructorString = (instance, url) =>
+                    {
+                        ShimSPSite site = new ShimSPSite(instance);
+                        site.Dispose = () => { };
+                        site.OpenWeb = () => web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            int resultCount = manager.GetNumberOfSubSites();
-            
-            // Assert.
-            Assert.AreEqual(count, resultCount);
+                // Act.
+                int resultCount = manager.GetNumberOfSubSites();
+
+                // Assert.
+                Assert.AreEqual(count, resultCount);
+            }
         }
 
         /// <summary>
         /// This method shows how much simpler your test setup becomes when
         /// you start prefering the use of behaviors over moles. 
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestGetUsersForSiteReturnsLoginNamesOfAllDefinedUsers()
         {
             // Arrange.
-            MSPUser user1 = new MSPUser() { LoginNameGet = () => @"DOMAIN\user1" };
-            MSPUser user2 = new MSPUser() { LoginNameGet = () => @"EXTERNAL\some.user" };
-            MSPUser user3 = new MSPUser() { LoginNameGet = () => "chris@chrisweldon.net" };
-            MSPUser user4 = new MSPUser() { LoginNameGet = () => "mike.test" };
-            BSPWeb web = new BSPWeb();
-            web.Users.SetAll(user1.Instance, user2.Instance, user3.Instance, user4.Instance);
-            MSPSite.ConstructorString = (instance, url) =>
+            using (new SharePointEmulationScope())
             {
-                MSPSite site = new MSPSite(instance);
-                site.Dispose = () => { };
-                site.OpenWeb = () => web;
-            };
-            WebSiteManager manager = new WebSiteManager("http://test");
+                ShimSPUser user1 = new ShimSPUser() {LoginNameGet = () => @"DOMAIN\user1"};
+                ShimSPUser user2 = new ShimSPUser() {LoginNameGet = () => @"EXTERNAL\some.user"};
+                ShimSPUser user3 = new ShimSPUser() {LoginNameGet = () => "chris@chrisweldon.net"};
+                ShimSPUser user4 = new ShimSPUser() {LoginNameGet = () => "mike.test"};
+                List<ShimSPUser> masterUsers = new List<ShimSPUser>() { user1, user2, user3, user4 };
 
-            // Act.
-            IEnumerable<string> users = manager.GetUsersForSite();
+                ShimSPWeb web = new ShimSPWeb();
+                ShimSPUserCollection coll = new ShimSPUserCollection();
+                coll.CountGet = () => masterUsers.Count;
+                coll.GetByIDInt32 = (id) => masterUsers.ElementAt(id);
+                coll.ItemGetInt32 = (id) => masterUsers.ElementAt(id);
+                coll.ItemAtIndexInt32 = (id) => masterUsers.ElementAt(id);
+                web.UsersGet = () => coll;
+                ShimSPSite.ConstructorString = (instance, url) =>
+                    {
+                        ShimSPSite site = new ShimSPSite(instance);
+                        site.Dispose = () => { };
+                        site.OpenWeb = () => web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Assert.
-            Assert.IsTrue(users.Contains(user1.Instance.LoginName));
-            Assert.IsTrue(users.Contains(user2.Instance.LoginName));
-            Assert.IsTrue(users.Contains(user3.Instance.LoginName));
-            Assert.IsTrue(users.Contains(user4.Instance.LoginName));
+                // Act.
+                IEnumerable<string> users = manager.GetUsersForSite();
+
+                // Assert.
+                Assert.IsTrue(users.Contains(user1.Instance.LoginName));
+                Assert.IsTrue(users.Contains(user2.Instance.LoginName));
+                Assert.IsTrue(users.Contains(user3.Instance.LoginName));
+                Assert.IsTrue(users.Contains(user4.Instance.LoginName));
+            }
         }
     }
 }

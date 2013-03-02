@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.SharePoint.Behaviors;
-using Microsoft.SharePoint.Moles;
+using Microsoft.QualityTools.Testing.Fakes;
+using Microsoft.SharePoint.Fakes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SharePoint.Library.Tests
@@ -11,8 +11,6 @@ namespace SharePoint.Library.Tests
     [TestClass]
     public class WebSiteManagerTests
     {
-        private WebSiteManager manager;
-
         /// <summary>
         /// Tests the standard use case for the web title. 
         /// </summary>
@@ -20,29 +18,32 @@ namespace SharePoint.Library.Tests
         /// In this first test case, moles only has to mock a few items. We
         /// use BehaveAsNotImplemented() to help us identify what we miss. 
         /// </remarks>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void GetSiteNameReturnsWebTitle()
         {
-            // Arrange.
-            string expectedTitle = "Test Site";
-            MSPSite.BehaveAsNotImplemented();
-            MSPWeb.BehaveAsNotImplemented();
-            MSPSite.ConstructorString = (instance, url) => { };
-            MSPSite.AllInstances.Dispose = (instance) => { };
-            MSPSite.AllInstances.OpenWeb = (instance) =>
-                                               {
-                                                   MSPWeb web = new MSPWeb();
-                                                   web.Dispose = () => { };
-                                                   web.TitleGet = () => expectedTitle;
-                                                   return web;
-                                               };
+            using (ShimsContext.Create())
+            {
+                // Arrange.
+                string expectedTitle = "Test Site";
+                ShimSPSite.BehaveAsNotImplemented();
+                ShimSPWeb.BehaveAsNotImplemented();
+                ShimSPSite.ConstructorString = (instance, url) => { };
+                ShimSPSite.AllInstances.Dispose = (instance) => { };
+                ShimSPSite.AllInstances.OpenWeb = (instance) =>
+                    {
+                        ShimSPWeb web = new ShimSPWeb();
+                        web.Dispose = () => { };
+                        web.TitleGet = () => expectedTitle;
+                        return web;
+                    };
 
-            // Act.
-            WebSiteManager manager = new WebSiteManager("http://test");
-            string siteName = manager.GetSiteName();
+                // Act.
+                WebSiteManager manager = new WebSiteManager("http://test");
+                string siteName = manager.GetSiteName();
 
-            // Assert.
-            Assert.AreEqual(expectedTitle, siteName, "Site Name does not match expected title.");
+                // Assert.
+                Assert.AreEqual(expectedTitle, siteName, "Site Name does not match expected title.");
+            }
         }
 
         /// <summary>
@@ -63,19 +64,22 @@ namespace SharePoint.Library.Tests
         /// cause great frustration when you find your production assumptions were wrong.
         /// </para>
         /// </remarks>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         [ExpectedException(typeof(FileNotFoundException))]
         public void WebSiteManagerDoesNotHandleFileNotFoundExceptions()
         {
-            // Arrange.
-            MSPSite.ConstructorString = (instance, url) =>
-                                            {
-                                                throw new FileNotFoundException();
-                                            };
-            WebSiteManager manager = new WebSiteManager("ftp://test");
+            using (ShimsContext.Create())
+            {
+                // Arrange.
+                ShimSPSite.ConstructorString = (instance, url) =>
+                    {
+                        throw new FileNotFoundException();
+                    };
+                WebSiteManager manager = new WebSiteManager("ftp://test");
 
-            // Act.
-            manager.GetSiteName();
+                // Act.
+                manager.GetSiteName();
+            }
         }
 
         /// <summary>
@@ -83,57 +87,63 @@ namespace SharePoint.Library.Tests
         /// you are properly disposing of all SharePoint objects after the operation
         /// completes. 
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void AddedMolesTestingBenefitOfBeingAbleToVerifyAllObjectsAreDisposed()
         {
-            // Arrange.
-            string expectedTitle = "Test Site";
-            bool siteClosed = false;
-            bool webClosed = false;
-            MSPSite.ConstructorString = (instance, url) => { };
-            MSPSite.AllInstances.Dispose = (instance) => { siteClosed = true; };
-            MSPSite.AllInstances.OpenWeb = (instance) =>
-                                               {
-                                                   MSPWeb web = new MSPWeb();
-                                                   web.Dispose = () => { webClosed = true; };
-                                                   web.TitleGet = () => expectedTitle;
-                                                   return web;
-                                               };
-            WebSiteManager manager = new WebSiteManager("http://test");
+            using (ShimsContext.Create())
+            {
+                // Arrange.
+                string expectedTitle = "Test Site";
+                bool siteClosed = false;
+                bool webClosed = false;
+                ShimSPSite.ConstructorString = (instance, url) => { };
+                ShimSPSite.AllInstances.Dispose = (instance) => { siteClosed = true; };
+                ShimSPSite.AllInstances.OpenWeb = (instance) =>
+                    {
+                        ShimSPWeb web = new ShimSPWeb();
+                        web.Dispose = () => { webClosed = true; };
+                        web.TitleGet = () => expectedTitle;
+                        return web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            string title = manager.GetSiteName();
+                // Act.
+                string title = manager.GetSiteName();
 
-            // Assert.
-            Assert.IsTrue(siteClosed, "SPSite was not closed.");
-            Assert.IsTrue(webClosed, "SPWeb was not closed.");
+                // Assert.
+                Assert.IsTrue(siteClosed, "SPSite was not closed.");
+                Assert.IsTrue(webClosed, "SPWeb was not closed.");
+            }
         }
 
         /// <summary>
         /// This tests the basic conditions of the GetNumberOfSubSites method.
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestWhenNoSubwebsDefinedShouldReturnZeroSubSites()
         {
-            // Arrange.
-            MSPSite.ConstructorString = (instance, url) => { };
-            MSPSite.AllInstances.Dispose = (instance) => { };
-            MSPSite.AllInstances.OpenWeb = (instance) =>
-                                               {
-                                                   MSPWeb web = new MSPWeb();
-                                                   web.Dispose = () => { };
-                                                   MSPWebCollection collection = new MSPWebCollection();
-                                                   collection.CountGet = () => 0;
-                                                   web.WebsGet = () => collection;
-                                                   return web;
-                                               };
-            WebSiteManager manager = new WebSiteManager("http://test");
+            using (ShimsContext.Create())
+            {
+                // Arrange.
+                ShimSPSite.ConstructorString = (instance, url) => { };
+                ShimSPSite.AllInstances.Dispose = (instance) => { };
+                ShimSPSite.AllInstances.OpenWeb = (instance) =>
+                    {
+                        ShimSPWeb web = new ShimSPWeb();
+                        web.Dispose = () => { };
+                        ShimSPWebCollection collection = new ShimSPWebCollection();
+                        collection.CountGet = () => 0;
+                        web.WebsGet = () => collection;
+                        return web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            int count = manager.GetNumberOfSubSites();
+                // Act.
+                int count = manager.GetNumberOfSubSites();
 
-            // Assert.
-            Assert.AreEqual(0, count, "Expected zero sub-sites.");
+                // Assert.
+                Assert.AreEqual(0, count, "Expected zero sub-sites.");
+            }
         }
 
         /// <summary>
@@ -143,110 +153,119 @@ namespace SharePoint.Library.Tests
         /// collection does not have any objects. Depending on your implementation, 
         /// this can trigger erratic behavior. 
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestShowingFakingCollectionExpectations()
         {
-            // Arrange.
-            int count = 4;
-            MSPSite.ConstructorString = (instance, url) => { };
-            MSPSite.AllInstances.Dispose = (instance) => { };
-            MSPSite.AllInstances.OpenWeb = (instance) =>
+            using (ShimsContext.Create())
             {
-                MSPWeb web = new MSPWeb();
-                web.Dispose = () => { };
-                MSPWebCollection collection = new MSPWebCollection();
-                collection.CountGet = () => count;
-                web.WebsGet = () => collection;
-                return web;
-            };
-            WebSiteManager manager = new WebSiteManager("http://test");
+                // Arrange.
+                int count = 4;
+                ShimSPSite.ConstructorString = (instance, url) => { };
+                ShimSPSite.AllInstances.Dispose = (instance) => { };
+                ShimSPSite.AllInstances.OpenWeb = (instance) =>
+                    {
+                        ShimSPWeb web = new ShimSPWeb();
+                        web.Dispose = () => { };
+                        ShimSPWebCollection collection = new ShimSPWebCollection();
+                        collection.CountGet = () => count;
+                        web.WebsGet = () => collection;
+                        return web;
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            int resultCount = manager.GetNumberOfSubSites();
+                // Act.
+                int resultCount = manager.GetNumberOfSubSites();
 
-            // Assert.
-            Assert.AreEqual(count, resultCount);
+                // Assert.
+                Assert.AreEqual(count, resultCount);
+            }
         }
 
         /// <summary>
         /// Shows the method of chaining the expressions together to create a proper 
         /// moled hierarchy of calls in order to test the application.
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestGetUsersForSiteReturnsEmptyListIfNoUsersDefined()
         {
-            // Arrange.
-            MSPSite.ConstructorString = (instance, url) =>
-                                            {
-                                                MSPSite moledInstance = new MSPSite(instance);
-                                                moledInstance.Dispose = () => { };
-                                                moledInstance.OpenWeb = () =>
-                                                                            {
-                                                                                MSPWeb web = new MSPWeb();
-                                                                                web.Dispose = () => { };
-                                                                                web.UsersGet = () =>
-                                                                                                   {
-                                                                                                       MSPUserCollection users = new MSPUserCollection();
-                                                                                                       users.CountGet = () => 0;
-                                                                                                       return users;
-                                                                                                   };
-                                                                                return web;
-                                                                            };
-                                            };
-            WebSiteManager manager = new WebSiteManager("http://test");
+            using (ShimsContext.Create())
+            {
+                // Arrange.
+                ShimSPSite.ConstructorString = (instance, url) =>
+                    {
+                        ShimSPSite moledInstance = new ShimSPSite(instance);
+                        moledInstance.Dispose = () => { };
+                        moledInstance.OpenWeb = () =>
+                            {
+                                ShimSPWeb web = new ShimSPWeb();
+                                web.Dispose = () => { };
+                                web.UsersGet = () =>
+                                    {
+                                        ShimSPUserCollection users = new ShimSPUserCollection();
+                                        users.CountGet = () => 0;
+                                        return users;
+                                    };
+                                return web;
+                            };
+                    };
+                WebSiteManager manager = new WebSiteManager("http://test");
 
-            // Act.
-            IEnumerable<string> returnedUsers = manager.GetUsersForSite();
+                // Act.
+                IEnumerable<string> returnedUsers = manager.GetUsersForSite();
 
-            // Assert.
-            Assert.AreEqual(0, returnedUsers.Count(), "Expected no users.");
+                // Assert.
+                Assert.AreEqual(0, returnedUsers.Count(), "Expected no users.");
+            }
         }
 
         /// <summary>
         /// This test shows how such a simple operation starts to take a lot
         /// of effort, and is producing a lot of repeatable code. 
         /// </summary>
-        [TestMethod, HostType("Moles")]
+        [TestMethod]
         public void TestGetUsersForSiteReturnsLoginNamesOfAllDefinedUsers()
         {
-            MSPUser user1 = new MSPUser() { LoginNameGet = () => @"DOMAIN\user1" };
-            MSPUser user2 = new MSPUser() { LoginNameGet = () => @"EXTERNAL\some.user" };
-            MSPUser user3 = new MSPUser() { LoginNameGet = () => "chris@chrisweldon.net" };
-            MSPUser user4 = new MSPUser() { LoginNameGet = () => "mike.test" };
-            MSPUserCollection users = new MSPUserCollection();
-            users.CountGet = () => 4;
-            users.ItemGetInt32 = (id) => 
-                                     {
-                                         switch (id)
-                                         {
-                                             case 0:
-                                                 return user1;
-                                             case 1:
-                                                 return user2;
-                                             case 2:
-                                                 return user3;
-                                             case 3:
-                                                 return user4;
-                                             default:
-                                                 throw new ArgumentOutOfRangeException();
-                                         }
-                                     };
+            using (ShimsContext.Create())
+            {
+                ShimSPUser user1 = new ShimSPUser() {LoginNameGet = () => @"DOMAIN\user1"};
+                ShimSPUser user2 = new ShimSPUser() {LoginNameGet = () => @"EXTERNAL\some.user"};
+                ShimSPUser user3 = new ShimSPUser() {LoginNameGet = () => "chris@chrisweldon.net"};
+                ShimSPUser user4 = new ShimSPUser() {LoginNameGet = () => "mike.test"};
+                ShimSPUserCollection users = new ShimSPUserCollection();
+                users.CountGet = () => 4;
+                users.ItemGetInt32 = (id) =>
+                    {
+                        switch (id)
+                        {
+                            case 0:
+                                return user1;
+                            case 1:
+                                return user2;
+                            case 2:
+                                return user3;
+                            case 3:
+                                return user4;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    };
 
-            MSPSite.ConstructorString = (instance, url) => { };
-            MSPSite.AllInstances.OpenWeb = (instance) =>
-                                               {
-                                                   MSPWeb web = new MSPWeb();
-                                                   web.Dispose = () => { };
-                                                   web.UsersGet = () => users;
-                                                   return web;
-                                               };
+                ShimSPSite.ConstructorString = (instance, url) => { };
+                ShimSPSite.AllInstances.OpenWeb = (instance) =>
+                    {
+                        ShimSPWeb web = new ShimSPWeb();
+                        web.Dispose = () => { };
+                        web.UsersGet = () => users;
+                        return web;
+                    };
 
-            WebSiteManager manager = new WebSiteManager("http://test");
-            IEnumerable<string> returnedUsers = manager.GetUsersForSite();
-            Assert.IsTrue(returnedUsers.Contains(user1.Instance.LoginName));
-            Assert.IsTrue(returnedUsers.Contains(user2.Instance.LoginName));
-            Assert.IsTrue(returnedUsers.Contains(user3.Instance.LoginName));
-            Assert.IsTrue(returnedUsers.Contains(user4.Instance.LoginName));
+                WebSiteManager manager = new WebSiteManager("http://test");
+                IEnumerable<string> returnedUsers = manager.GetUsersForSite();
+                Assert.IsTrue(returnedUsers.Contains(user1.Instance.LoginName));
+                Assert.IsTrue(returnedUsers.Contains(user2.Instance.LoginName));
+                Assert.IsTrue(returnedUsers.Contains(user3.Instance.LoginName));
+                Assert.IsTrue(returnedUsers.Contains(user4.Instance.LoginName));
+            }
         }
     }
 }
